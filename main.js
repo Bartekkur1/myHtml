@@ -5,14 +5,36 @@ let keywords = [
 let specials = [
     "FROM",
     "WHERE",
-    "*"
+    "*",
+    "UNSIGNED",
+    "unsigned",
+    "AUTO_INCREMENT",
+    "auto_increment",
+    "PRIMARYKEY",
+    "primarykey",
+    "NOTNULL",
+    "notnull",
+    "DEFAULT",
+    "default"
 ]
 let types = [
-    "int", "var"
+    "smallint", "char", "CHAR",
+    "DOUBLE", "double",
+    "INT", "VARCHAR", "TIMESTAMP",
+    "int", "varchar", "timestamp",
 ]
 
 // let test = "SELECT * FROM `kek` WHERE 1";
-let test = "CREATE TABLE kek { id int name var(255) }";
+// let test = "CREATE TABLE kek { id int name var(255) }";
+// let test = "CREATE TABLE MyGuests (\
+//     id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,\
+//     firstname VARCHAR(30) NOT NULL,\
+//     lastname VARCHAR(30) NOT NULL,\
+//     email VARCHAR(50),\
+//     reg_date TIMESTAMP\
+//     )";
+// let test = "CREATE TABLE example ( id smallint unsigned not null auto_increment, name varchar(20) not null, constraint pk_example primary key (id) );"
+// let test = "DELETE * FROM `users` WHERE `name` = 'kekus'"
 
 class Lexer {
     constructor(input) {
@@ -22,44 +44,79 @@ class Lexer {
         this.analysed = [];
     }
 
+    NewToken(token, value = null) {
+        if(!value) {
+            this.analysed.push({"token": token, "value": this.word});
+            this.word = "";
+        } else {
+            this.analysed.push({"token": token, "value": value});
+            this.word = "";
+        }
+    }
+
     Run() {
         let i = 0;
         this.input.forEach(element => {
             this.word += element;
             this.char += 1;
             this.quote = false;
+            this.string = false;
             console.log(this.word);
             if(keywords.includes(this.word)) {
-                this.analysed.push({"token": "keyword", "value": this.word});
-                this.word = "";
+                this.NewToken("keyword");
             }
             if(specials.includes(this.word)) {
-                this.analysed.push({"token": "special", "value": this.word});
-                this.word = "";
+                this.NewToken("special")
             }
-            if(types.includes(this.word)) {
-                this.analysed.push({"token": "type", "value": this.word});
-                this.word = "";
+            types.forEach(type => {
+                if(this.word.match(type)) {
+                    this.NewToken("name", this.word.split(type)[0]);
+                    this.NewToken("type", type);
+                }
+            })
+            specials.forEach(special => {
+                if(this.word.includes(special)) {
+                    this.NewToken("name", this.word.split(special)[0]);
+                    this.NewToken("special", special);
+                }
+            })
+            if(this.word.match(/[0-9]/) && !this.quote && !this.string) {
+                if(this.input[this.char + 1]) {
+                    if(!this.input[this.char + 1].match(/[0-9]/)) {
+                        this.NewToken("number");
+                    }
+                } else {
+                    this.NewToken("number");
+                }
+            }
+            if(element == "'") {
+                this.string = true;
+                if(this.word.length > 1) {
+                    this.NewToken("string");
+                    this.string = false;
+                }
             }
             if(element == "`") {
                 this.quote = true;
                 if(this.word.length > 1) {
-                    this.analysed.push({"token": "variable", "value": this.word});
-                    this.word = "";
+                    this.NewToken("variable");
                     this.quote = false;
                 }
             }
-            if(this.word.match(/(\(|\{|\[|\)|\}|\])/)) {
-                this.analysed.push({"token": "parenthesis", "value": this.word});
-                this.word = "";
+            if(this.word.match(/(\,|\=|\<|\>)/)) {
+                this.NewToken("special char");
+            }
+            if(this.word.match(/(\(|\{|\[|\)|\}|\|])/)) {
+                this.NewToken("parenthesis");
             }
             if(this.input[this.char+1] && 
-                this.input[this.char+1].match(/(\(|\{|\[})/)) {
-                this.analysed.push({"token": "variable", "value": this.word});
-                this.word = "";
+                this.input[this.char+1].match(/(\(|\{|\[})/) &&
+                this.word.length > 0) {
+                this.NewToken("variable");
             }
         })
         console.log("finished");
+        console.log(this.analysed);
     }
 }
 
